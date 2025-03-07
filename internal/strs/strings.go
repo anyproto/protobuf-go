@@ -41,7 +41,7 @@ func GoCamelCase(s string) string {
 		case c == '.' && i+1 < len(s) && isASCIILower(s[i+1]):
 			// Skip over '.' in ".{{lowercase}}".
 		case c == '.':
-			b = append(b, '_') // convert '.' to '_'
+			//b = append(b, '') // convert '.' to '_'
 		case c == '_' && (i == 0 || s[i-1] == '.'):
 			// Convert initial '_' to ensure we start with a capital letter.
 			// Do the same for '_' after '.' to match historic behavior.

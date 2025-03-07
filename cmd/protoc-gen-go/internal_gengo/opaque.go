@@ -6,6 +6,7 @@ package internal_gengo
 
 import (
 	"fmt"
+	"google.golang.org/protobuf/internal/strs"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -171,7 +172,7 @@ func opaqueGenOneofFields(g *protogen.GeneratedFile, f *fileInfo, message *messa
 	// even though it's not really a doc comment.
 	ss := []string{" Types that are valid to be assigned to ", oneofName, ":\n\n"}
 	for _, field := range oneof.Fields {
-		ss = append(ss, "\t*"+opaqueFieldOneofType(field, message.isOpaque()).GoName+"\n")
+		ss = append(ss, "\t*"+opaqueFieldOneofType(field, message).GoName+"\n")
 	}
 	leadingComments += protogen.Comments(strings.Join(ss, ""))
 	g.P(leadingComments, oneofName, " ", goType, tags)
@@ -315,7 +316,7 @@ func opaqueGenGet(g *protogen.GeneratedFile, f *fileInfo, message *messageInfo, 
 		if message.isOpaque() && message.isTracked {
 			g.P("_ = ", structPtr, ".XXX_ft_", field.Oneof.GoName)
 		}
-		g.P("if x, ok := ", structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), ".(*", opaqueFieldOneofType(field, message.isOpaque()), "); ok {")
+		g.P("if x, ok := ", structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), ".(*", opaqueFieldOneofType(field, message), "); ok {")
 		g.P("return x.", field.GoName)
 		g.P("}")
 		// End if m != nil {.
@@ -477,7 +478,7 @@ func opaqueGenSet(g *protogen.GeneratedFile, f *fileInfo, message *messageInfo, 
 			g.P("return")
 			g.P("}")
 		}
-		g.P(structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), "= &", opaqueFieldOneofType(field, message.isOpaque()), "{v}")
+		g.P(structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), "= &", opaqueFieldOneofType(field, message), "{v}")
 		g.P("}")
 		g.P()
 		return
@@ -606,7 +607,7 @@ func opaqueGenHas(g *protogen.GeneratedFile, f *fileInfo, message *messageInfo, 
 			// Add access to zero field for tracking
 			g.P("_ = ", structPtr, ".", "XXX_ft_", oneof.GoName)
 		}
-		g.P("_, ok := ", structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), ".(*", opaqueFieldOneofType(field, message.isOpaque()), ")")
+		g.P("_, ok := ", structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), ".(*", opaqueFieldOneofType(field, message), ")")
 		g.P("return ok")
 		g.P("}")
 		g.P()
@@ -671,7 +672,7 @@ func opaqueGenClear(g *protogen.GeneratedFile, f *fileInfo, message *messageInfo
 			// Add access to zero field for tracking
 			g.P(structPtr, ".", "XXX_ft_", oneof.GoName, " = struct{}{}")
 		}
-		g.P("if _, ok := ", structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), ".(*", opaqueFieldOneofType(field, message.isOpaque()), "); ok {")
+		g.P("if _, ok := ", structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), ".(*", opaqueFieldOneofType(field, message), "); ok {")
 		g.P(structPtr, ".", opaqueOneofFieldName(oneof, message.isOpaque()), " = nil")
 		g.P("}")
 		g.P("}")
@@ -814,7 +815,7 @@ func opaqueGenWhichOneof(g *protogen.GeneratedFile, f *fileInfo, message *messag
 			g.P("}")
 			g.P("switch x.", opaqueOneofFieldName(oneof, message.isOpaque()), ".(type) {")
 			for _, f := range oneof.Fields {
-				g.P("case *", opaqueFieldOneofType(f, message.isOpaque()), ":")
+				g.P("case *", opaqueFieldOneofType(f, message), ":")
 				g.P("return ", message.GoIdent.GoName, "_", f.GoName, "_case")
 			}
 			g.P("default", ":")
@@ -934,7 +935,7 @@ func opaqueGenBuildMethod(g *protogen.GeneratedFile, f *fileInfo, message *messa
 
 			g.P("if b.", field.BuilderFieldName(), " != nil {")
 			oneofName := opaqueOneofFieldName(oneof, message.isOpaque())
-			oneofType := opaqueFieldOneofType(field, message.isOpaque())
+			oneofType := opaqueFieldOneofType(field, message)
 			g.P("x.", oneofName, " = &", oneofType, "{", qual, "b.", field.BuilderFieldName(), "}")
 			g.P("}")
 		} else { // proto3 optional ends up here (synthetic oneof)
@@ -1026,7 +1027,7 @@ func opaqueGenOneofWrapperTypes(g *protogen.GeneratedFile, f *fileInfo, message 
 		g.P("}")
 		g.P()
 		for _, field := range oneof.Fields {
-			name := opaqueFieldOneofType(field, message.isOpaque())
+			name := opaqueFieldOneofType(field, message)
 			g.AnnotateSymbol(name.GoName, protogen.Annotation{Location: field.Location})
 			g.AnnotateSymbol(name.GoName+"."+field.GoName, protogen.Annotation{Location: field.Location})
 			g.P("type ", name, " struct {")
@@ -1037,6 +1038,7 @@ func opaqueGenOneofWrapperTypes(g *protogen.GeneratedFile, f *fileInfo, message 
 			}
 			tags := structTags{
 				{"protobuf", protobufTagValue},
+				{"json", fieldJSONTagValue(field)},
 			}
 			leadingComments := appendDeprecationSuffix(field.Comments.Leading,
 				field.Desc.ParentFile(),
@@ -1048,7 +1050,7 @@ func opaqueGenOneofWrapperTypes(g *protogen.GeneratedFile, f *fileInfo, message 
 			g.P()
 		}
 		for _, field := range oneof.Fields {
-			g.P("func (*", opaqueFieldOneofType(field, message.isOpaque()), ") ", ifName, "() {}")
+			g.P("func (*", opaqueFieldOneofType(field, message), ") ", ifName, "() {}")
 			g.P()
 		}
 	}
@@ -1165,10 +1167,12 @@ func opaqueOneofFieldName(oneof *protogen.Oneof, isOpaque bool) string {
 	return oneof.GoName
 }
 
-func opaqueFieldOneofType(field *protogen.Field, isOpaque bool) protogen.GoIdent {
+func opaqueFieldOneofType(field *protogen.Field, message *messageInfo) protogen.GoIdent {
+	isOpaque := message.isOpaque()
+	oneOfFieldName := strs.GoCamelCase(message.Message.Oneofs[0].GoName)
 	ident := protogen.GoIdent{
 		GoImportPath: field.Parent.GoIdent.GoImportPath,
-		GoName:       field.Parent.GoIdent.GoName + "_" + field.GoName,
+		GoName:       field.Parent.GoIdent.GoName + oneOfFieldName + "Of" + field.GoName,
 	}
 	// Check for collisions with nested messages or enums.
 	//
@@ -1209,7 +1213,7 @@ func unexportIdent(id protogen.GoIdent, isOpaque bool) protogen.GoIdent {
 }
 
 func opaqueOneofInterfaceName(oneof *protogen.Oneof) string {
-	return fmt.Sprintf("is%s_%s", oneof.Parent.GoIdent.GoName, oneof.GoName)
+	return fmt.Sprintf("Is%s%s", oneof.Parent.GoIdent.GoName, oneof.GoName)
 }
 func opaqueOneofCaseTypeName(oneof *protogen.Oneof) string {
 	return fmt.Sprintf("case_%s_%s", oneof.Parent.GoIdent.GoName, oneof.GoName)

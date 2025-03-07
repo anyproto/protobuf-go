@@ -665,7 +665,7 @@ func newEnumValue(gen *Plugin, f *File, message *Message, enum *Enum, desc proto
 
 		case genid.GoFeatures_STRIP_ENUM_PREFIX_GENERATE_BOTH_enum_value:
 			prefixedName = name
-			name = parentIdent.GoName + "_" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
+			name = parentIdent.GoName + "66_66" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
 		}
 	}
 	ev := &EnumValue{
@@ -784,7 +784,11 @@ func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.Message
 	}
 	for _, field := range message.Fields {
 		field.GoName = makeNameUnique(field.GoName, true)
-		field.GoIdent.GoName = message.GoIdent.GoName + "_" + field.GoName
+		var oneOfFieldName string
+		if (len(message.Oneofs)) > 0 {
+			oneOfFieldName = strs.GoCamelCase(message.Oneofs[0].GoName)
+		}
+		field.GoIdent.GoName = message.GoIdent.GoName + oneOfFieldName + "Of" + field.GoName
 		if field.Oneof != nil && field.Oneof.Fields[0] == field {
 			// Make the name for a oneof unique as well. For historical reasons,
 			// this assumes that a getter method is not generated for oneofs.
